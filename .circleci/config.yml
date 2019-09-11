@@ -24,6 +24,11 @@ jobs:
       - attach_workspace:
           at: ~/project
       - run:
+          name: install dependencies
+          command: |
+            bundle install --jobs=4 --retry=3 --path vendor/bundle && \
+            gem install rspec
+      - run:
           name: build gem
           command: gem build fluent-plugin-slack.gemspec
       - run:
