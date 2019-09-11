@@ -144,7 +144,7 @@ module Fluent
 
       def encode_body(params = {})
         # https://api.slack.com/docs/formatting
-        to_json_with_scrub!(params).gsub(/&/, '&amp;').gsub(/</, '&lt;').gsub(/>/, '&gt;')
+        to_json_with_scrub!(params)
       end
 
       def response_check(res, params)
