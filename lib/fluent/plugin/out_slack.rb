@@ -60,6 +60,13 @@ DESC
     desc <<-DESC
 Url to an image to use as the icon.
 Either of `icon_emoji` or `icon_url` can be specified.
+%s will be replaced with value specified by icon_emoji_keys if this option is used.
+DESC
+    config_param :icon_emoji_keys,      default: nil do |val|
+      val.split(',')
+    end
+    desc <<-DESC
+Allow to set icon emoji dynamically from the record.
 DESC
     config_param :icon_url,             :string, default: nil
     desc "Enable formatting. See: https://api.slack.com/docs/formatting."
@@ -203,7 +210,13 @@ DESC
           raise Fluent::ConfigError, "string specifier '%s' for `channel` and `channel_keys` specification mismatch"
         end
       end
-
+      if @icon_emoji && @icon_emoji_keys
+        begin
+          @icon_emoji % (['1'] * @icon_emoji_keys.length)
+        rescue ArgumentError
+          raise Fluent::ConfigError, "string specifier '%s' for `icon_emoji` and `icon_emoji_keys` specification mismatch"
+        end
+      end
       if @icon_emoji and @icon_url
         raise Fluent::ConfigError, "either of `icon_emoji` or `icon_url` can be specified"
       end
@@ -253,6 +266,8 @@ DESC
         build_title_payloads(chunk)
       elsif @color
         build_color_payloads(chunk)
+      elsif @icon_emoji_keys
+        build_message_with_icon_emoji(chunk)
       else
         build_plain_payloads(chunk)
       end
@@ -311,6 +326,25 @@ DESC
       end
     end
 
+    def build_message_with_icon_emoji(chunk)
+      ch_fields = {}
+      chunk.msgpack_each do |tag, time, record|
+        channel = build_channel(record)
+        icon_emoji = build_emoji(record)
+        ch_fields[channel] ||= {}
+        ch_fields[channel][icon_emoji] ||= ''
+        ch_fields[channel][icon_emoji] << "#{build_message(record)}\n"
+      end
+
+      ch_fields.flat_map do |channel, fields|
+        fields.map do |icon_emoji, message|
+          msg = {text: message, icon_emoji: icon_emoji}
+          msg.merge!(channel: channel) if channel
+          common_payload.merge!(msg)
+        end
+      end
+    end
+
     def build_color_payloads(chunk)
       messages = {}
       chunk.msgpack_each do |tag, time, record|
@@ -354,6 +388,14 @@ DESC
 
       values = fetch_keys(record, @title_keys)
       @title % values
+    end
+
+    def build_emoji(record)
+      return nil if @icon_emoji.nil?
+      return @icon_emoji unless @icon_emoji_keys
+
+      values = fetch_keys(record, @icon_emoji_keys)
+      @icon_emoji % values
     end
 
     def build_channel(record)
