@@ -1,3 +1,9 @@
+## 0.6.9 (2020/02/20)
+
+Enhancements:
+
+* Support `icon_emoji_keys` options to dynamically change icon_emoji
+
 ## 0.6.7 (2017/05/23)
 
 Enhancements:
